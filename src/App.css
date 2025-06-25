@@ -235,10 +235,9 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1.08rem;
+  margin-bottom: 1rem;
   font-weight: 600;
-  color: #222;
-  margin-bottom: 0.7rem;
+  color: #333;
 }
 .fir-tooltip {
   font-size: 1.1rem;
@@ -249,11 +248,13 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 1.1rem;
+  /* margin: 1em; */
+  margin-top: 1.5em;
 }
 .form-row label {
   font-size: 1rem;
   color: #555;
+  font-weight: 600;
   /* min-width: 90px; */
 }
 .form-row input,
@@ -269,7 +270,7 @@
   outline: none;
 }
 .form-row textarea {
-  min-height: 60px;
+  min-height: 15em;
   resize: none;
 }
 .age-input-group {
@@ -354,10 +355,15 @@
   font-weight: bold;
   cursor: pointer;
   margin-top: 1.2rem;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
 }
-.generate-fir-btn:hover {
+.generate-fir-btn:hover:not(:disabled) {
   background: #b71c1c;
+}
+.generate-fir-btn:disabled {
+  background: #ffcdd2;
+  color: #ef9a9a;
+  cursor: not-allowed;
 }
 .incident-validate-panel {
   display: flex;
@@ -835,6 +841,7 @@
   margin-bottom: 0;
   width: 100%;
   align-self: flex-end;
+  /* margin-right: -5.7em; */
 }
 
 .transcription-loader {
@@ -1057,6 +1064,7 @@
   justify-content: center;
   z-index: 10;
   backdrop-filter: blur(2px);
+  overflow: hidden;
 }
 
 .analysis-loading-text {
@@ -1359,25 +1367,31 @@
 .download-fir-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  background: #1976d2;
+  background: #FF4757;
   color: white;
   border: none;
-  border-radius: 6px;
-  padding: 0.6rem 1.2rem;
-  font-size: 0.95rem;
+  border-radius: 8px;
+  padding: 0.9rem;
+  font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  width: 100%;
+  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.2);
 }
 
 .download-fir-btn:hover:not(:disabled) {
-  background: #1565c0;
+  background: #FF3344;
+  box-shadow: 0 6px 16px rgba(255, 71, 87, 0.3);
+  transform: translateY(-2px);
 }
 
 .download-fir-btn:disabled {
-  background: #90caf9;
+  background: #FFB8BE;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .download-fir-btn .material-icons {
@@ -1470,4 +1484,105 @@
 
 .fir-section-card .material-icons.remove:hover {
   opacity: 1;
+}
+
+.form-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #333;
+  background-color: white;
+  transition: all 0.2s ease;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.form-select option {
+  padding: 8px;
+}
+
+.form-row {
+  margin-bottom: 16px;
+}
+
+.form-row label {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 600;
+}
+
+.language-warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffebee;
+  color: #d32f2f;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 12px;
+  font-size: 14px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.audio-dropzone {
+  background: #f5f6fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.audio-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.upload-section {
+  display: flex;
+  align-items: center;
+}
+
+/* Make all other labels bold as well */
+label {
+  font-weight: 600 !important;
+  color: #333;
+}
+
+/* Specific styling for select labels */
+select + label, 
+.form-select + label {
+  font-weight: 600;
+}
+
+/* Audio panel labels */
+.audio-panel label,
+.audio-controls label {
+  font-weight: 600;
+  color: #333;
+}
+
+/* Add a class to disable body scrolling */
+.body-no-scroll {
+  overflow: hidden;
+  height: 100vh;
 }

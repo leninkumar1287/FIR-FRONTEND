@@ -1,16 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import WaveSurfer from 'wavesurfer.js';
-import RegionsPlugin from 'wavesurfer.js/plugins/regions';
+import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions';
 
-function Header({ tab, setTab }) {
+function Header({ tab, setTab, isAnalysisComplete }) {
   return (
     <header className="fir-header">
       <div className="fir-header-left">
         <h1>Generate FIR</h1>
         <nav>
-          <span className={tab === 'register' ? 'active' : ''} onClick={() => setTab('register')}>Register FIR</span>
-          <span className={tab === 'preview' ? 'active' : ''} onClick={() => setTab('preview')}>Preview</span>
+          <span className={tab === 'register' ? 'active' : ''}>Register FIR</span>
+          <span className={tab === 'preview' ? 'active' : ''} style={{ cursor: 'default' }}>Preview</span>
         </nav>
       </div>
       <div className="fir-header-right">
@@ -22,7 +22,7 @@ function Header({ tab, setTab }) {
   );
 }
 
-function AudioPanel({ transcription, setTranscription, onTranscriptionDone }) {
+function AudioPanel({ transcription, setTranscription, onTranscriptionDone, form, setForm }) {
   const [audioFile, setAudioFile] = useState(null);
   const [audioUrl, setAudioUrl] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -33,7 +33,8 @@ function AudioPanel({ transcription, setTranscription, onTranscriptionDone }) {
   const [isWaveformReady, setIsWaveformReady] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  
+  const [showLanguageWarning, setShowLanguageWarning] = useState(false);
+
   const fileInputRef = useRef();
   const wavesurferRef = useRef(null);
   const waveformContainerRef = useRef();
@@ -64,10 +65,7 @@ function AudioPanel({ transcription, setTranscription, onTranscriptionDone }) {
             barWidth: 3,
             responsive: true,
             plugins: [
-              RegionsPlugin.create({
-                dragSelection: true,
-                regions: [],
-              })
+              RegionsPlugin.create()
             ]
           });
           ws.load(audioUrl);
@@ -110,7 +108,7 @@ function AudioPanel({ transcription, setTranscription, onTranscriptionDone }) {
 
   const handleTranscribe = async (file, selectedLanguage) => {
     if (!file || !selectedLanguage) return;
-    
+
     const formData = new FormData();
     formData.append('audio', file);
     formData.append('language', selectedLanguage);
@@ -124,7 +122,7 @@ function AudioPanel({ transcription, setTranscription, onTranscriptionDone }) {
       });
       console.log("response : ", response);
       if (!response.ok) throw new Error('Transcription failed');
-      
+
       const data = await response.json();
       setTranscription(data.text);
       onTranscriptionDone(data.text);
@@ -140,13 +138,27 @@ function AudioPanel({ transcription, setTranscription, onTranscriptionDone }) {
     wavesurferRef.current.playPause();
   };
 
-  const handleUpload = (e) => {
+  const handleFileSelect = (e) => {
+    if (!language) {
+      setShowLanguageWarning(true);
+      setTimeout(() => setShowLanguageWarning(false), 3000); // Hide warning after 3 seconds
+      return;
+    }
     const file = e.target.files?.[0];
     if (file) {
       setAudioFile(file);
       setAudioUrl(URL.createObjectURL(file));
       setError('');
     }
+  };
+
+  const handleUploadClick = () => {
+    if (!language) {
+      setShowLanguageWarning(true);
+      setTimeout(() => setShowLanguageWarning(false), 3000); // Hide warning after 3 seconds
+      return;
+    }
+    fileInputRef.current?.click();
   };
 
   const handleDrag = (e) => {
@@ -161,7 +173,11 @@ function AudioPanel({ transcription, setTranscription, onTranscriptionDone }) {
 
   const handleDrop = (e) => {
     e.preventDefault();
-    e.stopPropagation();
+    if (!language) {
+      setShowLanguageWarning(true);
+      setTimeout(() => setShowLanguageWarning(false), 3000); // Hide warning after 3 seconds
+      return;
+    }
     setDragActive(false);
     const file = e.dataTransfer.files?.[0];
     if (file?.type.startsWith('audio/')) {
@@ -192,54 +208,54 @@ function AudioPanel({ transcription, setTranscription, onTranscriptionDone }) {
   return (
     <div className="fir-card audio-panel">
       <div className="fir-panel-header">
-        <span>Record Statement</span>
-        <select 
-          value={language} 
-          onChange={e => setLanguage(e.target.value)} 
-          style={{marginRight: '1rem', padding: '0.3rem 0.7rem', borderRadius: 6}}
-        >
-          <option value="">Select Language</option>
-          <option value="hi">Hindi</option>
-          <option value="en">English</option>
-        </select>
+        <span>Audio Input</span>
       </div>
       <div
-        className={`audio-controls-row${dragActive ? ' drag-active' : ''}`}
-        style={{ background: '#f5f6fa', borderRadius: 12, padding: '1rem', alignItems: 'center', position: 'relative' }}
-        onDragEnter={handleDrag}
+        className="audio-dropzone"
         onDragOver={handleDrag}
-        onDragLeave={handleDrag}
         onDrop={handleDrop}
       >
-        {!audioFile && (
-          <>
+        <div className="audio-controls">
+          <select
+            value={language}
+            onChange={e => {
+              setLanguage(e.target.value);
+              setShowLanguageWarning(false);
+            }}
+            style={{ marginRight: '1rem', padding: '0.3rem 0.7rem', borderRadius: 6 }}
+          >
+            <option value="">Select Language</option>
+            <option value="hi">Hindi</option>
+            <option value="en">English</option>
+          </select>
+          <div className="upload-section">
             <button
-              className="audio-upload-btn"
-              type="button"
-              onClick={() => {
-                if (!language) {
-                  setError('Please select a language before uploading audio.');
-                  return;
-                }
-                handleClickUpload();
-              }}
-              disabled={!language}
+              className="upload-btn"
+              onClick={handleUploadClick}
             >
               <span className="material-icons">upload</span> Upload Audio
             </button>
-            <span style={{marginLeft: 12, color: '#888', fontSize: '0.98rem'}}> or drag & drop audio here</span>
+            <span style={{ marginLeft: 12, color: '#888', fontSize: '0.98rem' }}> or drag & drop audio here</span>
             <input
               ref={fileInputRef}
               type="file"
               accept="audio/*"
+              onChange={handleFileSelect}
               style={{ display: 'none' }}
-              onChange={handleUpload}
             />
-          </>
+          </div>
+        </div>
+
+        {showLanguageWarning && (
+          <div className="language-warning">
+            <span className="material-icons" style={{ color: '#f44336', marginRight: '8px' }}>warning</span>
+            Please select a language before uploading audio
+          </div>
         )}
+
         {audioFile && (
           <>
-            <button className="audio-btn" onClick={handlePlayPause} style={{marginRight: 8}} disabled={!isWaveformReady}>
+            <button className="audio-btn" onClick={handlePlayPause} style={{ marginRight: 8 }} disabled={!isWaveformReady}>
               <span className="material-icons">{isPlaying ? 'pause' : 'play_arrow'}</span>
             </button>
             <div ref={waveformContainerRef} style={{ flex: 1, height: 40, background: '#f5f6fa', borderRadius: 8 }} />
@@ -247,19 +263,16 @@ function AudioPanel({ transcription, setTranscription, onTranscriptionDone }) {
             <span className="material-icons audio-icon" title="Delete" onClick={handleDelete}>delete</span>
           </>
         )}
-        {dragActive && (
-          <div className="audio-drag-overlay">Drop audio file here</div>
-        )}
       </div>
       {error && <div style={{ color: '#d32f2f', marginTop: 8 }}>{error}</div>}
       <div className="transcription-box">
         <div className="transcription-label">Statement</div>
-        <textarea 
-          value={transcription} 
+        <textarea
+          value={transcription}
           onChange={e => {
             setTranscription(e.target.value);
             onTranscriptionDone(e.target.value);
-          }} 
+          }}
           style={{ width: '100%', height: '220px', resize: 'none' }}
           placeholder={isTranscribing ? "Transcribing audio..." : "Transcription will appear here"}
           disabled={isTranscribing}
@@ -270,8 +283,34 @@ function AudioPanel({ transcription, setTranscription, onTranscriptionDone }) {
 }
 
 function FIRFormPanel({ form, setForm }) {
+  const crimeTypes = [
+    'Theft',
+    'Assault',
+    'Robbery',
+    'Burglary',
+    'Domestic Violence',
+    'Fraud',
+    'Cybercrime',
+    'Murder',
+    'Kidnapping',
+    'Sexual Harassment',
+    'Property Damage',
+    'Drug Related',
+    'Public Nuisance',
+    'Traffic Violation',
+    'White Collar Crime'
+  ];
+
+  const severityLevels = [
+    'Minor',
+    'Moderate',
+    'Serious',
+    'Severe',
+    'Critical'
+  ];
+
   return (
-    <div className="fir-card fir-form-panel" style={{width:'115%'}}>
+    <div className="fir-card fir-form-panel" style={{ width: '115%' }}>
       <div className="fir-panel-header">
         <span>FIR Application</span>
         <div>
@@ -320,28 +359,68 @@ function FIRFormPanel({ form, setForm }) {
           <label>Location</label>
           <input type="text" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
         </div>
-        <div className="form-row">
+
+        <div className="form-row" >
           <label>Description</label>
-          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ width: '100%' }} />
+          <textarea value={form.description}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
         </div>
-        <div className="form-row">
-          <label>Type</label>
-          <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}><option value="">Type</option></select>
-          <label>Severity</label>
-          <select value={form.severity} onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}><option value="">Severity</option></select>
+        <div style={{ display: 'flex', gap: 12, width: '100%', marginTop: '1rem' }}>
+          <div className="form-row">
+            <label>Crime Type</label>
+            <select
+              value={form.crimeType || ''}
+              onChange={(e) => setForm({ ...form, crimeType: e.target.value })}
+              className="form-select"
+            >
+              <option value="">Select Crime Type</option>
+              {crimeTypes.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-row">
+            <label>Severity Level</label>
+            <select
+              value={form.severity || ''}
+              onChange={(e) => setForm({ ...form, severity: e.target.value })}
+              className="form-select"
+            >
+              <option value="">Select Severity</option>
+              {severityLevels.map(level => (
+                <option key={level} value={level}>{level}</option>
+              ))}
+            </select>
+          </div>
         </div>
+
+
       </div>
     </div>
   );
 }
 
-function MasterDataPanel({ tab, setTab, form }) {
+function MasterDataPanel({ tab, setTab, form, sections, setSections, setMainTab }) {
   const [activeCategory, setActiveCategory] = useState('intent');
   const [events, setEvents] = useState(null);
   const [modalities, setModalities] = useState(null);
   const [loading, setLoading] = useState(false);
   const [analysisStage, setAnalysisStage] = useState('');
   const [error, setError] = useState(null);
+  const [isAnalysisComplete, setIsAnalysisComplete] = useState(false);
+
+  // Add useEffect to manage body scrolling
+  useEffect(() => {
+    if (loading) {
+      document.body.classList.add('body-no-scroll');
+    } else {
+      document.body.classList.remove('body-no-scroll');
+    }
+    // Cleanup function to ensure we remove the class when component unmounts
+    return () => {
+      document.body.classList.remove('body-no-scroll');
+    };
+  }, [loading]);
 
   // Keep the original incident categories
   const incidentCategories = [
@@ -401,6 +480,7 @@ function MasterDataPanel({ tab, setTab, form }) {
   const analyzeDescription = async () => {
     setLoading(true);
     setError(null);
+    setIsAnalysisComplete(false);
     try {
       // First analyze events
       setAnalysisStage('Analyzing event sequence...');
@@ -411,7 +491,7 @@ function MasterDataPanel({ tab, setTab, form }) {
         },
         body: JSON.stringify({ description: form.description })
       });
-      
+
       if (!eventsResponse.ok) throw new Error('Failed to analyze events');
       const eventsData = await eventsResponse.json();
       setEvents(eventsData);
@@ -429,8 +509,33 @@ function MasterDataPanel({ tab, setTab, form }) {
       if (!modalitiesResponse.ok) throw new Error('Failed to analyze modalities');
       const modalitiesData = await modalitiesResponse.json();
       setModalities(modalitiesData);
+
+      // Predict applicable BNS sections
+      setAnalysisStage('Predicting applicable sections...');
+      const bnsResponse = await fetch('http://localhost:5000/predict_bns', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(modalitiesData)
+      });
+
+      if (!bnsResponse.ok) throw new Error('Failed to predict BNS sections');
+      const bnsData = await bnsResponse.json();
+
+      // Convert BNS predictions to sections format
+      const newSections = bnsData.results.map(result => ({
+        name: result.predicted_offence,
+        description: `Intent: ${result.intent}. Similarity Score: ${(result.similarity_score * 100).toFixed(1)}%`,
+        ipc: result.predicted_bns_section
+      }));
+
+      setSections(newSections);
+      setIsAnalysisComplete(true);
     } catch (err) {
       setError(err.message);
+      setIsAnalysisComplete(false);
     } finally {
       setLoading(false);
       setAnalysisStage('');
@@ -492,14 +597,14 @@ function MasterDataPanel({ tab, setTab, form }) {
   return (
     <div className="fir-card">
       <div className="fir-panel-header">
-        <div className="tab-header">
-          <button 
+        <div className="tab-header" style={{ marginLeft: '4em', }}>
+          <button
             className={`tab-button ${tab === 'master' ? 'active' : ''}`}
             onClick={() => setTab('master')}
           >
             Master Data
           </button>
-          <button 
+          <button
             className={`tab-button ${tab === 'incident' ? 'active' : ''}`}
             onClick={() => setTab('incident')}
           >
@@ -507,7 +612,7 @@ function MasterDataPanel({ tab, setTab, form }) {
           </button>
         </div>
       </div>
-      
+
       {tab === 'master' ? (
         <div className="master-data-container">
           <div className="master-data-content">
@@ -538,8 +643,8 @@ function MasterDataPanel({ tab, setTab, form }) {
             </div>
           )}
           {!events ? (
-            <button 
-              className="analyze-btn incident-analyze-btn" 
+            <button
+              className="analyze-btn incident-analyze-btn"
               onClick={analyzeDescription}
               disabled={loading || !form?.description}
             >
@@ -554,6 +659,17 @@ function MasterDataPanel({ tab, setTab, form }) {
           )}
         </div>
       )}
+      <button 
+        className="generate-fir-btn" 
+        onClick={() => setMainTab('preview')}
+        disabled={!isAnalysisComplete}
+        style={{ 
+          opacity: isAnalysisComplete ? 1 : 0.6,
+          cursor: isAnalysisComplete ? 'pointer' : 'not-allowed'
+        }}
+      >
+        Generate FIR
+      </button>
     </div>
   );
 }
@@ -601,14 +717,14 @@ function PreviewPage({ form, firText, sections, setSections, onBack }) {
 
         if (!bnsResponse.ok) throw new Error('Failed to predict BNS sections');
         const bnsData = await bnsResponse.json();
-        
+
         // Update sections with BNS predictions
         const newSections = bnsData.results.map(result => ({
           name: result.predicted_offence,
           description: `Intent: ${result.intent}. Similarity Score: ${(result.similarity_score * 100).toFixed(1)}%`,
           ipc: result.predicted_bns_section
         }));
-        
+
         setBnsResults(bnsData);
         setSections(newSections);
       } catch (error) {
@@ -740,7 +856,7 @@ function PreviewPage({ form, firText, sections, setSections, onBack }) {
 
       // Get the blob from the response
       const blob = await response.blob();
-      
+
       // Create a download link and trigger it
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -768,9 +884,9 @@ function PreviewPage({ form, firText, sections, setSections, onBack }) {
       </div>
       <div className="fir-report-right">
         <div className="fir-letter-content">
-        <h3 style={{textAlign: 'center'}}>First Information Report</h3>
+          <h3 style={{ textAlign: 'center' }}>First Information Report</h3>
           {/* <div>कार्यवाही अपराध क्रमांक /25 थाना 296, 115(2), 351(2), 3(5) आईपीसी, द्वारा</div> */}
-          <div style={{marginTop: '1rem'}}>
+          <div style={{ marginTop: '1rem' }}>
             <div>नाम फरियादी: {form.name}</div>
             <div>आरोपी: -</div>
             <div>घटना स्थल: {form.location}</div>
@@ -778,18 +894,18 @@ function PreviewPage({ form, firText, sections, setSections, onBack }) {
             <div>कार्यवाही दिनांक समय: {new Date().toLocaleDateString()}</div>
             <div>कार्यवाहीकर्ता: प्रकार -</div>
           </div>
-          <div style={{marginTop: '1.5rem'}}>
+          <div style={{ marginTop: '1.5rem' }}>
             <div>विवरण - फरियादी:</div>
-            <div style={{marginTop: '1rem', whiteSpace: 'pre-line'}}>{firText}</div>
+            <div style={{ marginTop: '1rem', whiteSpace: 'pre-line' }}>{firText}</div>
           </div>
-          <div style={{marginTop: '3rem', display: 'flex', justifyContent: 'space-between'}}>
+          <div style={{ marginTop: '3rem', display: 'flex', justifyContent: 'space-between' }}>
             <div>
               <div><strong>Date:</strong> {new Date().toLocaleDateString()}</div>
               <div><strong>Place:</strong> Mumbai</div>
             </div>
-            <div style={{textAlign: 'right'}}>
+            <div style={{ textAlign: 'right' }}>
               <div>Faithfully,</div>
-              <div style={{height: '60px'}}></div>
+              <div style={{ height: '60px' }}></div>
               <div>Complainant's Signature</div>
               <div>({form.name || ''})</div>
             </div>
@@ -807,26 +923,9 @@ function PreviewPage({ form, firText, sections, setSections, onBack }) {
   return (
     <div className="fir-preview-layout">
       <div className="fir-preview-col left">
-        <div className="fir-card fir-preview-report" style={{width: '100%'}}>
+        <div className="fir-card fir-preview-report" style={{ width: '100%' }}>
           <div className="fir-panel-header">
             First Information Report
-            <button 
-              className="download-fir-btn" 
-              onClick={downloadLetterFormat}
-              disabled={isDownloading}
-            >
-              {isDownloading ? (
-                <>
-                  <span className="material-icons loading">sync</span>
-                  Downloading...
-                </>
-              ) : (
-                <>
-                  <span className="material-icons">file_download</span>
-                  Download FIR
-                </>
-              )}
-            </button>
           </div>
           <div className="fir-report-content" ref={firRef} onMouseUp={handleTextSelect}>
             {letterFormat ? renderLetterFormat() : renderPlainFormat()}
@@ -836,7 +935,7 @@ function PreviewPage({ form, firText, sections, setSections, onBack }) {
       <div className="fir-preview-col right">
         <div className="fir-card fir-preview-sections">
           <div className="fir-panel-header">
-            Details of Wrongdoings
+            Applicable Sections
             <button className="add-section-btn" onClick={() => setShowAdd(true)}>
               <span className="material-icons">add</span> Add
             </button>
@@ -847,31 +946,57 @@ function PreviewPage({ form, firText, sections, setSections, onBack }) {
               <div>Analyzing sections...</div>
             </div>
           ) : (
-            <div className="fir-section-cards">
-              {sections.map((s, i) => (
-                <div 
-                  className={`fir-section-card${selectedSection === i ? ' selected' : ''}`} 
-                  key={s.name} 
-                  onClick={() => setSelectedSection(i)}
-                >
-                  <div className="fir-section-card-header">
-                    <span>{s.name}</span>
-                    <span className="material-icons success">check</span>
-                    <span 
-                      className="material-icons remove" 
-                      onClick={e => { 
-                        e.stopPropagation(); 
-                        removeSection(s.name); 
-                      }}
-                    >
-                      close
-                    </span>
+            <>
+              <div className="fir-section-cards">
+                {sections.map((s, i) => (
+                  <div
+                    className={`fir-section-card${selectedSection === i ? ' selected' : ''}`}
+                    key={s.name}
+                    onClick={() => setSelectedSection(i)}
+                  >
+                    <div className="fir-section-card-header">
+                      <span>{s.name}</span>
+                      <span className="material-icons success"> check</span>
+                      <span
+                        className="material-icons remove"
+                        onClick={e => {
+                          e.stopPropagation();
+                          removeSection(s.name);
+                        }}
+                      >
+                        close
+                      </span>
+                    </div>
+                    <div style={{ height: '1em' , paddingTop: '.5em'}}></div>
+
+                    <div className="fir-section-card-desc">
+                      {(s.description || '').replace('Intent', 'Description')}
+                    </div>
+                    <div style={{ height: '1em' , paddingTop: '.5em'}}></div>
+
+                    <div className="fir-section-card-ipc">{(s.ipc || '').replace('BNS', 'IPC')}</div>
                   </div>
-                  <div className="fir-section-card-desc">{s.description}</div>
-                  <div className="fir-section-card-ipc">{s.ipc}</div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+              <button
+                className="download-fir-btn"
+                onClick={downloadLetterFormat}
+                disabled={isDownloading}
+                style={{ marginTop: '1.5rem' }}
+              >
+                {isDownloading ? (
+                  <>
+                    <span className="material-icons loading">sync</span>
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-icons">file_download</span>
+                    Download FIR
+                  </>
+                )}
+              </button>
+            </>
           )}
         </div>
         {showAdd && (
@@ -1052,8 +1177,8 @@ function SimulationPanel({ onSelectScenario }) {
       </div>
       <div className="simulation-scenarios">
         {Object.entries(crimeScenarios).map(([key, scenario]) => (
-          <div 
-            key={key} 
+          <div
+            key={key}
             className="scenario-card"
             onClick={() => onSelectScenario(scenario)}
           >
@@ -1065,120 +1190,6 @@ function SimulationPanel({ onSelectScenario }) {
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function AnalysisPanel({ form }) {
-  const [events, setEvents] = useState(null);
-  const [modalities, setModalities] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const analyzeDescription = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // First analyze events
-      const eventsResponse = await fetch('http://localhost:3000/openai/analyze-events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ description: form.description })
-      });
-      
-      if (!eventsResponse.ok) throw new Error('Failed to analyze events');
-      const eventsData = await eventsResponse.json();
-      setEvents(eventsData);
-
-      // Then analyze modalities based on events
-      const modalitiesResponse = await fetch('http://localhost:3000/openai/analyze-modalities', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ events: eventsData })
-      });
-
-      if (!modalitiesResponse.ok) throw new Error('Failed to analyze modalities');
-      const modalitiesData = await modalitiesResponse.json();
-      setModalities(modalitiesData);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const renderEvents = () => {
-    if (!events?.event_segments) return null;
-    return (
-      <div className="analysis-section">
-        <h3>Event Sequence</h3>
-        <div className="event-timeline">
-          {events.event_segments.map((event, index) => (
-            <div key={event.event_id} className="event-card">
-              <div className="event-header">
-                <span className="event-id">{event.event_id}</span>
-                <span className="event-type">{event.type}</span>
-              </div>
-              <div className="event-name">{event.event_name}</div>
-              <div className="event-text">{event.text}</div>
-              <div className="event-details">
-                {event.timestamp_text && <div><strong>When:</strong> {event.timestamp_text}</div>}
-                {event.location && <div><strong>Where:</strong> {event.location}</div>}
-                {event.actors_involved?.length > 0 && (
-                  <div><strong>Who:</strong> {event.actors_involved.join(', ')}</div>
-                )}
-              </div>
-              {event.is_crucial && <div className="event-crucial">Crucial Event</div>}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const renderModalities = () => {
-    if (!modalities) return null;
-    return (
-      <div className="analysis-section">
-        <h3>Crime Modalities</h3>
-        <div className="modalities-grid">
-          {Object.entries(modalities).map(([category, values]) => (
-            <div key={category} className="modality-card">
-              <div className="modality-header">{category.replace(/_/g, ' ').toUpperCase()}</div>
-              <div className="modality-values">
-                {values.map((value, index) => (
-                  <div key={index} className="modality-value">
-                    {value.replace(/_/g, ' ')}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="fir-card analysis-panel">
-      <div className="fir-panel-header">
-        <span>Crime Analysis</span>
-        <button 
-          className="analyze-btn"
-          onClick={analyzeDescription}
-          disabled={loading || !form.description}
-        >
-          {loading ? 'Analyzing...' : 'Analyze Crime'}
-        </button>
-      </div>
-      {error && <div className="analysis-error">{error}</div>}
-      {loading && <div className="analysis-loading">Analyzing crime patterns...</div>}
-      {renderEvents()}
-      {renderModalities()}
     </div>
   );
 }
@@ -1200,11 +1211,7 @@ function App() {
     type: '',
     severity: '',
   });
-  const [sections, setSections] = useState([
-    { name: 'Physical Assault', description: 'The complainant, Rajesh Kumar, was slapped and attacked on the neck; his friend \'Raja\' was also assaulted', ipc: 'IPC Section 351' },
-    { name: 'Verbal Abuse and Threat', description: 'Abusive and threatening language was used by the attackers.', ipc: 'IPC Section 115(2)' },
-    { name: 'Group Conspiracy', description: 'Attackers acted as a group and brought additional assailants to escalate the situation.', ipc: 'IPC Section 3(5)' },
-  ]);
+  const [sections, setSections] = useState([]);
 
   // When transcription is done, parse and fill form
   const handleTranscriptionDone = (text) => {
@@ -1238,7 +1245,7 @@ function App() {
       {mainTab === 'register' ? (
         <div className="fir-app-layout">
           <div className="fir-col left">
-            <AudioPanel transcription={transcription} setTranscription={setTranscription} onTranscriptionDone={handleTranscriptionDone} />
+            <AudioPanel transcription={transcription} setTranscription={setTranscription} onTranscriptionDone={handleTranscriptionDone} form={form} setForm={setForm} />
             <SimulationPanel onSelectScenario={handleScenarioSelect} />
           </div>
           <div className="fir-col center">
@@ -1246,9 +1253,8 @@ function App() {
           </div>
           <div className="fir-col right" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <MasterDataPanel tab={rightTab} setTab={setRightTab} form={form} />
+              <MasterDataPanel tab={rightTab} setTab={setRightTab} form={form} sections={sections} setSections={setSections} setMainTab={setMainTab} />
             </div>
-            <button className="generate-fir-btn" onClick={() => setMainTab('preview')}>Generate FIR</button>
           </div>
         </div>
       ) : (
